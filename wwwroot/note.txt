@@ -1,0 +1,17 @@
+﻿the first PR will be to creat a new folder called FileStorage
+after implementation, will be testing
+so create a new file called FlatFileStorageRegistration
+	Infrastructure
+		Sepal.Inf
+			Admin
+				Configurations
+
+go to the test project
+	Tests
+		Admin
+			create a folder(FileStorage)
+				FlatFileStorageTest
+
+only create id in the test alone because the client service does that
+
+do a research on how to save to wwwroot folder, web host
