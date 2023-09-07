@@ -1,0 +1,205 @@
+using Microsoft.AspNetCore.Http;
+using SEPAL.Infrastructure.Admin.FileStorage;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Unity;
+
+namespace SEPAL.Infrastructure.Tests.Admin.FileStorage
+{
+    [TestFixture]
+    internal class FlatFileStorageTest
+    {
+        public FlatFileStorageTest()
+        {
+            Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Test");
+            _container = new UnityContainer()
+                .AddFlatFileStorageService();
+
+            _fileStorage = _container.Resolve<IFileStorage>();
+        }
+
+        [Test]
+        public async Task Save_ShouldReturn_SuccessResult()
+        {
+            // Arrange
+            //var filepath = @"C:\Users\abdulazeez.adams\Pictures\Logo.png";
+            var filepath = @"C:\Users\gideon.edoghotu\Pictures\logo.jpg";
+            var fileId = Guid.NewGuid();
+
+            // Act
+            var result = await _fileStorage.Save(fileId, new FileStream(filepath, FileMode.Open));
+            //var result = await _fileStorage.Save(fileId, new FormFile())
+
+            // Assert
+            Assert.That(result.IsSuccess, Is.True);
+
+            var getResult = await _fileStorage.Get(fileId);
+
+            // Assert
+            Assert.That(getResult.IsSuccess, Is.True);
+        }
+
+        private IUnityContainer _container;
+        private IFileStorage _fileStorage;
+    }
+}
+
+
+using CypherCrescent.Shared.ErrorHandling;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SEPAL.Infrastructure.Admin.FileStorage
+{
+    internal class FlatFileStorage : IFileStorage
+    {
+        public string StorageDirectory => Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData) + @"\CypherCrescent Ltd\Sepal Enterprise\Uploads\";
+
+        public async Task<Result<FileStream>> Get(Guid id)
+        {
+            FileStream stream = null!;
+            try
+            {
+                await Task.Run(() =>
+                {
+                    var filepath = Path.Combine(StorageDirectory, id.ToString());
+                    stream = File.OpenRead(filepath);
+                });
+
+                return Succeeded(stream);
+            }
+            catch
+            {
+                return Failed<FileStream>("Failed to get file");
+            }
+        }
+
+        public async Task<Result> Save(Guid id, FileStream stream)
+        {
+            var filepath = Path.Combine(StorageDirectory, id.ToString());
+            try
+            {
+                if (!Directory.Exists(StorageDirectory))
+                    Directory.CreateDirectory(StorageDirectory);
+                using var fileStream = File.Create(filepath);
+                await stream.CopyToAsync(fileStream);
+                return Succeeded();
+            }
+            catch
+            {
+                return Failed("Unable to save file");
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /*public async Task<Result<IFormFile>> Get(Guid id)
+        {
+            try
+            {
+                var filePath = Path.Combine(_webHostEnvironment.WebRootPath, "Images", id.ToString());
+                var fileBytes = await File.ReadAllBytesAsync(filePath);
+                var memoryStream = new MemoryStream(fileBytes);
+                var file = new FormFile(memoryStream, 0, fileBytes.Length, null, Path.GetFileName(filePath));
+
+
+                IFormFile iformFile = file;
+
+                return Succeeded(iformFile);
+
+            }
+            catch (Exception)
+            {
+                return Failed<IFormFile>("Failed to get file");
+            }
+        }
+
+        public async Task<Result> Save(Guid id, IFormFile file)
+        {
+            var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "Images");
+            try
+            {
+                if(!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                var filePath = Path.Combine(uploadsFolder, id.ToString());
+
+                using var fileStream = File.Create(filePath);
+                await file.CopyToAsync(fileStream);
+
+                return Succeeded();
+            }
+            catch (Exception)
+            {
+                return Failed("Unable to save file");
+            }
+        }
+
+        private readonly IWebHostEnvironment _webHostEnvironment;*/
+    }
+}
+
+
+using CypherCrescent.Shared.ErrorHandling;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SEPAL.Infrastructure.Admin.FileStorage
+{
+    public interface IFileStorage
+    {
+        //Task<Result> Save(Guid id, IFormFile file);
+        //Task<Result<IFormFile>> Get(Guid id);
+        Task<Result> Save(Guid id, FileStream stream);
+        Task<Result<FileStream>> Get(Guid id);
+
+    }
+}
+
+
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Unity;
+
+namespace SEPAL.Infrastructure.Admin.FileStorage
+{
+    internal static class FlatFileStorageRegistration
+    {
+        public static IUnityContainer AddFlatFileStorageService(this IUnityContainer container)
+        {
+            return container.RegisterType<IFileStorage, FlatFileStorage>();
+        }
+
+        public static IServiceCollection AddFlatFileStorageService(this IServiceCollection services)
+        {
+            return services.AddScoped<IFileStorage, FlatFileStorage>();
+        }
+    }
+}
